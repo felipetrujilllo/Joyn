@@ -10,6 +10,7 @@ export const DEAD_ZONE = 0.15;
 export const DPAD_DEAD_ZONE = 0.25; // fraction of the dish radius that presses nothing
 export const DPAD_OUTER = 1.1; // a finger this far out (in radii) has slid off the dish
 
+const FACE = ["A", "B", "X", "Y"]; // buttons a finger can slide between
 const STICK_AXES = { left: ["lx", "ly"], right: ["rx", "ry"] };
 // 45-degree sectors counter-clockwise from screen-right (index = round(angle / 45) mod 8).
 const DPAD_SECTORS = [["Right"], ["Up", "Right"], ["Up"], ["Up", "Left"], ["Left"], ["Down", "Left"], ["Down"], ["Down", "Right"]]
@@ -60,14 +61,20 @@ export function box(c, W, H) {
  * (set by layouts.js shapeControls), which hit as a stadium: the drawn shape, not its box.
  */
 export function hitTest(controls, x, y, W, H) {
-  return controls.find((c) => {
-    const { cx, cy, hw, hh } = box(c, W, H);
-    const ax = Math.abs(x - cx), ay = Math.abs(y - cy);
-    if (c.type !== "button") return Math.hypot(ax, ay) <= hw;
-    if (c.shape !== "circle" && c.shape !== "pill") return ax <= hw && ay <= hh;
-    const r = Math.min(hw, hh); // stadium: a rectangle with round ends of radius r (a circle when hw = hh)
-    return Math.hypot(Math.max(0, ax - (hw - r)), Math.max(0, ay - (hh - r))) <= r;
-  }) ?? null;
+  return controls.find((c) => edgeDistance(c, x, y, W, H) <= 0) ?? null;
+}
+
+/**
+ * Distance (px) from point (x, y) to the edge of control c's hit shape (see hitTest); 0 or less inside.
+ * Exact outside circles and stadiums; inside a rectangle it is 0, which is all hitTest needs.
+ */
+export function edgeDistance(c, x, y, W, H) {
+  const { cx, cy, hw, hh } = box(c, W, H);
+  const ax = Math.abs(x - cx), ay = Math.abs(y - cy);
+  if (c.type !== "button") return Math.hypot(ax, ay) - hw;
+  if (c.shape !== "circle" && c.shape !== "pill") return Math.hypot(Math.max(0, ax - hw), Math.max(0, ay - hh));
+  const r = Math.min(hw, hh); // stadium: a rectangle with round ends of radius r (a circle when hw = hh)
+  return Math.hypot(Math.max(0, ax - (hw - r)), Math.max(0, ay - (hh - r))) - r;
 }
 
 /**
@@ -75,6 +82,11 @@ export function hitTest(controls, x, y, W, H) {
  * a stick pointer keeps steering its stick outside the circle, a dpad pointer presses
  * whichever direction it is on now (sliding between directions works without lifting),
  * and a button stays held while any pointer bound to it is down.
+ * Face buttons (A/B/X/Y) slide: a finger that went down on one presses whichever face button
+ * it is over now, one at a time. In a gap it keeps the last one; it releases (presses nothing)
+ * once it is over a non-face control, or over nothing and farther than that last button's own
+ * width from every face button's edge. Sliding back onto a face button presses it again.
+ * Fingers that went down elsewhere never press a face button by sliding onto it.
  * A trackpad (`mode` "left"/"right") sets that stick's axes from where the finger is on it
  * (centre neutral, rim full, same dead zone as a stick); `mode` "dpad" presses like the dpad.
  * Two fingers on one stick-driving control: the one that went down last wins until it lifts.
@@ -83,7 +95,8 @@ export function hitTest(controls, x, y, W, H) {
  * @param {number} H screen height (px)
  */
 export function createTracker(controls, W, H) {
-  const pointers = new Map(); // pointer id -> {c, x, y}
+  const pointers = new Map(); // pointer id -> {c, x, y, face}; c is null while a face finger is released
+  const faces = controls.filter((c) => c.type === "button" && FACE.includes(c.name));
   const release = (id) => pointers.delete(id);
   return {
     /** Update the screen size (px) after a resize. */
@@ -91,13 +104,18 @@ export function createTracker(controls, W, H) {
     /** Pointer went down at (x, y) px; returns the control it bound to, or null. */
     down(id, x, y) {
       const c = hitTest(controls, x, y, W, H);
-      if (c) pointers.set(id, { c, x, y });
+      if (c) pointers.set(id, { c, x, y, face: faces.includes(c) });
       return c;
     },
     /** Pointer moved to (x, y) px. */
     move(id, x, y) {
       const p = pointers.get(id);
-      if (p) { p.x = x; p.y = y; }
+      if (!p) return;
+      p.x = x; p.y = y;
+      if (!p.face) return;
+      const over = hitTest(controls, x, y, W, H);
+      if (faces.includes(over)) p.c = over;
+      else if (over || !faces.some((f) => edgeDistance(f, x, y, W, H) <= (p.c?.w ?? 0) * H / 100)) p.c = null;
     },
     /** Pointer lifted. */
     up: release,
@@ -122,6 +140,7 @@ export function createTracker(controls, W, H) {
     snapshot() {
       const s = { b: 0, lx: 0, ly: 0, rx: 0, ry: 0 };
       for (const { c, x, y } of pointers.values()) {
+        if (!c) continue;
         if (c.type === "button") { s.b |= bit(c.name); continue; }
         const { cx, cy, hw } = box(c, W, H);
         if (c.type === "dpad" || (c.type === "trackpad" && c.mode === "dpad")) { s.b |= dpadBits(x - cx, y - cy, hw); continue; }

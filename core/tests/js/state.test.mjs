@@ -121,12 +121,12 @@ test("a stick pointer outside its circle still steers that stick", () => {
   assert.ok(s.rx > 0 && Math.hypot(s.rx, s.ry) > AXIS_MAX - 2);
 });
 
-test("a button pointer that slides off keeps its button, never another", () => {
+test("a non-face button pointer that slides off keeps its button, never another", () => {
   const t = createTracker(controls, W, H);
-  t.down(1, ...center("A"));
-  t.move(1, ...center("B"));
-  assert.equal(t.snapshot().b, bit("A"));
-});
+  t.down(1, ...center("LB"));
+  t.move(1, ...center("RB"));
+  assert.equal(t.snapshot().b, bit("LB"));
+}); // face buttons (A/B/X/Y) slide instead since #19: see face.test.mjs
 
 test("cancel releases, unknown pointers and empty space are ignored", () => {
   const t = createTracker(controls, W, H);
