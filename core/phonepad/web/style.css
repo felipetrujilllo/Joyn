@@ -16,6 +16,14 @@
   --x: #3b8bff;
   --y: #f2c200;
   --on-face: #111;
+  --dpad-tile: #c8cbcf;
+  --dpad-tile-alt: #b2b6bb;
+  --dpad-line: #8a8e94;
+  --dpad-band: #ffffff24;
+  --dpad-shade: #00000070;
+  --dpad-mark: #6a6f75;
+  --dpad-glow: #ffffff66;
+  --dpad-on: #4a8;
 }
 
 html, body {
@@ -56,6 +64,10 @@ html, body {
 
 .button.on { background: var(--pressed); border-color: var(--pressed-border); }
 
+/* Shapes come from layouts.js shapeControls (data-shape); hitTest uses the same value.
+   999px clamps to half the short side: a circle when square, a pill (stadium) when wide. */
+.button[data-shape="circle"], .button[data-shape="pill"] { border-radius: 999px; }
+
 .button svg { height: 60%; }
 
 /* Face buttons: letter and border in their colour, filled when pressed. */
@@ -80,6 +92,40 @@ html, body {
   border-radius: 50%;
   background: var(--knob);
 }
+
+/* D-pad dish: faceted grey tiles (16 spokes x 3 rings) in a shallow bowl; no images. */
+.dpad {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--dpad-line);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle closest-side, transparent 55%, var(--dpad-shade) 100%),
+    radial-gradient(circle closest-side, var(--dpad-tile) 0 22%, var(--dpad-line) 22% 24%, transparent 24%),
+    repeating-radial-gradient(circle closest-side, transparent 0 32%, var(--dpad-line) 32% 33.3%),
+    repeating-conic-gradient(from 11.25deg, var(--dpad-line) 0 1deg, transparent 1deg 22.5deg),
+    repeating-radial-gradient(circle closest-side, transparent 0 33.3%, var(--dpad-band) 33.3% 66.6%),
+    repeating-conic-gradient(from 11.25deg, var(--dpad-tile) 0 22.5deg, var(--dpad-tile-alt) 22.5deg 45deg);
+  box-shadow: inset 0 0.6vh 2.5vh var(--dpad-shade);
+}
+
+/* One quarter per direction (up, then rotated); a pressed direction lights its wedge and arrow. */
+.dpad .dir { position: absolute; inset: 0; border-radius: 50%; }
+.dpad .dir.right { transform: rotate(90deg); }
+.dpad .dir.down { transform: rotate(180deg); }
+.dpad .dir.left { transform: rotate(270deg); }
+.dpad .dir.on { background: conic-gradient(from -45deg, var(--dpad-glow) 0 90deg, transparent 90deg); }
+.dpad .dir::after {
+  content: "";
+  position: absolute;
+  left: 44%;
+  top: 5%;
+  width: 12%;
+  height: 9%;
+  background: var(--dpad-mark);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.dpad .dir.on::after { background: var(--dpad-on); }
 
 #status {
   position: absolute;

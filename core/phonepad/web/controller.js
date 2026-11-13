@@ -3,7 +3,7 @@
 // The #switch button swaps layouts in place; the page (and client.js's connection) never reloads.
 import { AXIS_MAX, box, createTracker } from "./state.js";
 import { bit } from "./buttons.js";
-import { ICONS, chooseLayout, loadLayout, nextLayout, saveLayout, savedLayout } from "./layouts.js";
+import { DPAD_BUTTONS, ICONS, chooseLayout, loadLayout, nextLayout, saveLayout, savedLayout, shapeControls } from "./layouts.js";
 
 const pad = document.getElementById("pad");
 const switcher = document.getElementById("switch");
@@ -33,13 +33,18 @@ async function show(pick) {
   pad.className = "";
   document.documentElement.dataset.theme = loaded.theme; // style.css [data-theme] picks the colours
   layout = loaded;
-  controls = loaded.controls;
+  controls = shapeControls(loaded.controls, loaded.theme); // same shapes for drawing and hit testing
   tracker = createTracker(controls, innerWidth, innerHeight);
   els = controls.map((c) => {
     const el = document.createElement("div");
     el.className = c.type;
     el.dataset.name = c.name;
+    if (c.shape) el.dataset.shape = c.shape;
     if (c.type === "stick") el.appendChild(document.createElement("div")).className = "knob";
+    else if (c.type === "dpad") {
+      el.setAttribute("aria-label", c.label ?? "D-pad");
+      for (const d of DPAD_BUTTONS) el.appendChild(document.createElement("div")).className = `dir ${d.toLowerCase()}`;
+    }
     else if (c.icon) { el.innerHTML = ICONS[c.icon]; el.setAttribute("aria-label", c.label); } // validated icon name
     else el.textContent = c.label;
     return pad.appendChild(el);
@@ -74,6 +79,10 @@ function update() {
   last = key;
   controls.forEach((c, i) => {
     if (c.type === "button") { els[i].classList.toggle("on", (s.b & bit(c.name)) !== 0); return; }
+    if (c.type === "dpad") { // children are in DPAD_BUTTONS order
+      DPAD_BUTTONS.forEach((d, j) => els[i].children[j].classList.toggle("on", (s.b & bit(d)) !== 0));
+      return;
+    }
     const [x, y] = c.name === "left" ? [s.lx, s.ly] : [s.rx, s.ry];
     const r = box(c, innerWidth, innerHeight).hw;
     els[i].firstChild.style.transform = `translate(${(x / AXIS_MAX) * r}px, ${(y / AXIS_MAX) * r}px)`;

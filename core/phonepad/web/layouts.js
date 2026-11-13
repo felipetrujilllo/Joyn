@@ -17,9 +17,33 @@ export const SWITCH_ZONE = { type: "button", name: "switch", x: 36, y: 7, w: 14,
 export const THEMES = ["xbox"];
 export const DEFAULT_THEME = "xbox";
 
+/**
+ * How each theme draws (and hit-tests) its buttons; the one place shapes are set.
+ * "round": a square button (w = h) is a circle, a wide or tall one a pill. "rect": rectangles.
+ */
+export const THEME_SHAPES = { xbox: "round" };
+
+/** The four D-pad buttons a `dpad` control provides. */
+export const DPAD_BUTTONS = ["Up", "Down", "Left", "Right"];
+
+/**
+ * Copy `controls`, giving each button the `shape` its theme draws it with ("circle" | "pill" | "rect").
+ * The page passes the result to both the DOM (`data-shape`) and the tracker, so drawing and hitting agree.
+ * @param {object[]} controls layout `controls`
+ * @param {string} theme a THEMES id
+ * @returns {object[]}
+ */
+export function shapeControls(controls, theme) {
+  const round = THEME_SHAPES[theme] === "round";
+  return controls.map((c) => (c.type !== "button" ? c
+    : { ...c, shape: !round ? "rect" : c.w === c.h ? "circle" : "pill" }));
+}
+
 /** Icons a button may name in `"icon"`, drawn as inline SVG in place of its label (no network). */
 export const ICONS = {
   home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3 2 12h3v9h5v-6h4v6h5v-9h3z"/></svg>',
+  view: '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="12" height="12" rx="2.5"/><rect x="9" y="9" width="12" height="12" rx="2.5"/></g></svg>',
+  menu: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>',
 };
 
 /**
@@ -35,7 +59,7 @@ export function layoutProblems(layout) {
   const t = layout.theme;
   if (t !== undefined && !(typeof t === "string" && ID_RE.test(t) && THEMES.includes(t))) problems.push(`unknown theme ${t}`);
   for (const c of controls) {
-    const keys = { stick: ["x", "y", "r"], button: ["x", "y", "w", "h"] }[c?.type];
+    const keys = { stick: ["x", "y", "r"], dpad: ["x", "y", "r"], button: ["x", "y", "w", "h"] }[c?.type];
     if (!keys) { problems.push(`${c?.name}: unknown type ${c?.type}`); continue; }
     const bad = keys.filter((k) => !(typeof c[k] === "number" && c[k] >= 0 && c[k] <= 100));
     if (bad.length) problems.push(`${c.name}: ${bad.join(", ")} must be a number 0..100`);
@@ -44,8 +68,10 @@ export function layoutProblems(layout) {
     if (c.icon !== undefined && !Object.hasOwn(ICONS, c.icon)) problems.push(`${c.name}: unknown icon ${c.icon}`);
   }
   const names = controls.filter((c) => c?.type === "button").map((c) => c.name);
+  // each dpad provides Up/Down/Left/Right, so a dpad plus a D-pad button (or two dpads) counts twice
+  const provided = [...names, ...controls.filter((c) => c?.type === "dpad").flatMap(() => DPAD_BUTTONS)];
   for (const b of BUTTONS) {
-    const n = names.filter((x) => x === b).length;
+    const n = provided.filter((x) => x === b).length;
     if (n !== 1) problems.push(n ? `${b} appears ${n} times` : `${b} is missing`);
   }
   for (const x of names) if (!BUTTONS.includes(x)) problems.push(`unknown button ${x}`);

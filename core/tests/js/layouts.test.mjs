@@ -62,7 +62,7 @@ test("validator reports a duplicate button", () => {
 });
 
 test("validator reports a third stick", () => {
-  const p = layoutProblems(variant((cs) => cs.push({ type: "stick", name: "left", x: 50, y: 95, r: 2 })));
+  const p = layoutProblems(variant((cs) => cs.push({ type: "stick", name: "left", x: 50, y: 50, r: 2 })));
   assert.deepEqual(p, ["sticks must be left and right, got [left,left,right]"]);
 });
 
@@ -352,4 +352,62 @@ test("show() applies the layout's theme and tags each control by name, every tim
   assert.match(show, /el\.dataset\.name = c\.name;/);
   // the page has a theme before the first layout loads (e.g. the error message)
   assert.match(read("index.html"), /<html lang="en" data-theme="xbox">/);
+});
+
+// D-pad dish and new icons
+
+test("validator: one dpad provides Up/Down/Left/Right; mixing, doubling or dropping it is reported", () => {
+  assert.equal(xbox.controls.filter((c) => c.type === "dpad").length, 1);
+  assert.ok(!xbox.controls.some((c) => ["Up", "Down", "Left", "Right"].includes(c.name)));
+  assert.deepEqual(layoutProblems(xbox), []);
+  const dpad = find(xbox.controls, "dpad");
+  const extraUp = layoutProblems(variant((cs) => cs.push({ type: "button", name: "Up", label: "U", x: 50, y: 50, w: 4, h: 4 })));
+  assert.deepEqual(extraUp, ["Up appears 2 times"]);
+  const two = layoutProblems(variant((cs) => cs.push({ ...dpad, x: 50, y: 50, r: 2 })));
+  assert.deepEqual(two, ["Up appears 2 times", "Down appears 2 times", "Left appears 2 times", "Right appears 2 times"]);
+  const none = layoutProblems(variant((cs) => cs.splice(cs.indexOf(find(cs, "dpad")), 1)));
+  assert.deepEqual(none, ["Up is missing", "Down is missing", "Left is missing", "Right is missing"]);
+  // four D-pad buttons instead of the dpad is still a valid layout
+  const four = variant((cs) => {
+    cs.splice(cs.indexOf(find(cs, "dpad")), 1, ...[["Up", 40, 66], ["Down", 40, 92], ["Left", 33, 79], ["Right", 47, 79]]
+      .map(([name, x, y]) => ({ type: "button", name, label: name, x, y, w: 10, h: 10 })));
+  });
+  assert.deepEqual(layoutProblems(four), []);
+});
+
+test("validator: dpad position must be in range, on screen and not overlapping", () => {
+  assert.deepEqual(layoutProblems(variant((cs) => { find(cs, "dpad").r = 120; })), ["dpad: r must be a number 0..100"]);
+  assert.deepEqual(layoutProblems(variant((cs) => { delete find(cs, "dpad").x; })), ["dpad: x must be a number 0..100"]);
+  const over = layoutProblems(variant((cs) => { Object.assign(find(cs, "dpad"), { x: find(cs, "A").x, y: find(cs, "A").y }); }));
+  assert.ok(over.includes("A overlaps dpad at 1000x500") || over.includes("dpad overlaps A at 1000x500"), over.join("; "));
+  const off = layoutProblems(variant((cs) => { find(cs, "dpad").y = 95; }));
+  assert.ok(off.includes("dpad goes off-screen at 1600x900"), off.join("; "));
+  const sw = layoutProblems(variant((cs) => { Object.assign(find(cs, "dpad"), { x: SWITCH_ZONE.x, y: 20, r: 10 }); }));
+  assert.ok(sw.includes("dpad overlaps the layout switch at 1000x500"), sw.join("; "));
+});
+
+test("Back shows the view icon, Start the menu icon, Guide home; all local SVG with labels", () => {
+  assert.deepEqual(["Back", "Start", "Guide"].map((n) => find(xbox.controls, n).icon), ["view", "menu", "home"]);
+  assert.equal(find(xbox.controls, "Back").label, "Back");
+  assert.equal(find(xbox.controls, "Start").label, "Start");
+  for (const name of ["home", "view", "menu"]) {
+    assert.match(ICONS[name], /^<svg viewBox="0 0 24 24" aria-hidden="true">.*<\/svg>$/, name);
+    assert.match(ICONS[name], /currentColor/, name);
+    assert.doesNotMatch(ICONS[name], /https?:|url\(|<image|href|xmlns|<script|\son\w+=/i, name);
+  }
+  assert.equal((ICONS.view.match(/<rect /g) ?? []).length, 2); // two overlapping rounded squares
+  assert.match(ICONS.view, /rx="/);
+  assert.equal((ICONS.menu.match(/M4 \d+h16/g) ?? []).length, 3); // three horizontal lines
+  for (const bad of ["xbox-logo", "toString", "__proto__"]) {
+    assert.deepEqual(layoutProblems(variant((cs) => { find(cs, "Start").icon = bad; })), [`Start: unknown icon ${bad}`], bad);
+  }
+});
+
+test("dish colours come from the theme block", () => {
+  const { base, themes } = themeCss();
+  for (const v of ["--dpad-tile", "--dpad-tile-alt", "--dpad-line", "--dpad-shade", "--dpad-on"]) {
+    assert.ok(base.includes(`var(${v})`), `base uses ${v}`);
+    for (const [id, { vars }] of Object.entries(themes)) assert.ok(vars.has(v), `${id} defines ${v}`);
+  }
+  assert.match(base, /\.dpad \{[^}]*conic-gradient/); // faceted tiles drawn by CSS, no images
 });
