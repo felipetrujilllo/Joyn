@@ -48,6 +48,23 @@ export function shapeControls(controls, theme) {
     : { ...c, shape: !round ? "rect" : c.w === c.h ? "circle" : "pill" }));
 }
 
+/**
+ * Smallest size each control may have, in % of screen height, on its short side (min(w, h)) for buttons
+ * or its diameter (2r) for sticks, dishes and trackpads. Keys: button names, "dpad" (a dish or a
+ * dpad-mode trackpad: 40 across = each direction at least 20) and "stick" (a stick or stick-mode trackpad).
+ * Buttons not listed here have no minimum.
+ */
+export const MIN_SIZE = {
+  dpad: 40, stick: 36,
+  A: 18, B: 18, X: 18, Y: 18,
+  Back: 12, Start: 12, Guide: 12, L3: 12, R3: 12,
+  LB: 12, RB: 12, LT: 12, RT: 12,
+};
+
+/** The MIN_SIZE key for control `c`, or undefined when it has no minimum. */
+const sizeKey = (c) => (c.type === "button" ? (Object.hasOwn(MIN_SIZE, c.name) ? c.name : undefined)
+  : c.type === "dpad" || c.mode === "dpad" ? "dpad" : "stick");
+
 /** Icons a button may name in `"icon"`, drawn as inline SVG in place of its label (no network). */
 export const ICONS = {
   home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3 2 12h3v9h5v-6h4v6h5v-9h3z"/></svg>',
@@ -77,6 +94,11 @@ export function layoutProblems(layout) {
     if (c.type === "stick" && !STICKS.includes(c.name)) problems.push(`${c.name}: a stick must be named left or right`);
     if (c.type === "trackpad" && !TRACKPAD_MODES.includes(c.mode)) problems.push(`${c.name}: unknown mode ${c.mode}`);
     if (c.icon !== undefined && !Object.hasOwn(ICONS, c.icon)) problems.push(`${c.name}: unknown icon ${c.icon}`);
+  }
+  for (const c of sized) {
+    const min = MIN_SIZE[sizeKey(c)];
+    const got = c.type === "button" ? Math.min(c.w, c.h) : 2 * c.r;
+    if (min !== undefined && got < min) problems.push(`${c.name}: smaller than the minimum (${got} < ${min})`);
   }
   const names = controls.filter((c) => c?.type === "button").map((c) => c.name);
   // each dpad (or dpad-mode trackpad) provides Up/Down/Left/Right, so one plus a D-pad button (or two) counts twice

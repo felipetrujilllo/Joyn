@@ -178,7 +178,7 @@ test("validator: left trackpad + right stick + dpad-mode trackpad + the other bu
 
 test("validator: each stick driven exactly once, by a stick or a trackpad", () => {
   const both = [...pads, { type: "trackpad", name: "lpad", mode: "left", x: 50, y: 50, r: 2 }];
-  assert.deepEqual(layoutProblems({ controls: both }), ["left stick is driven 2 times"]);
+  assert.deepEqual(layoutProblems({ controls: both }), ["lpad: smaller than the minimum (4 < 36)", "left stick is driven 2 times"]);
   const noRight = pads.filter((c) => c.name !== "rpad");
   assert.deepEqual(layoutProblems({ controls: noRight }), ["right stick is missing"]);
   const misnamed = swap({ right: { type: "stick", name: "middle" } });
@@ -197,7 +197,7 @@ test("validator: a dpad-mode trackpad provides Up/Down/Left/Right once", () => {
   assert.deepEqual(layoutProblems({ controls: extraUp }), ["Up appears 2 times"]);
   const withDish = [...pads, { type: "dpad", name: "dish", x: 50, y: 50, r: 2 }];
   assert.deepEqual(layoutProblems({ controls: withDish }),
-    ["Up appears 2 times", "Down appears 2 times", "Left appears 2 times", "Right appears 2 times"]);
+    ["dish: smaller than the minimum (4 < 40)", "Up appears 2 times", "Down appears 2 times", "Left appears 2 times", "Right appears 2 times"]);
 });
 
 test("validator: trackpad position in range, on screen, not overlapping, clear of the switch", () => {

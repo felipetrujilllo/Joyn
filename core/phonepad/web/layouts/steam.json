@@ -5,19 +5,19 @@
   "controls": [
     {"type": "stick", "name": "left", "x": 16, "y": 38, "r": 18},
     {"type": "trackpad", "name": "lpad", "mode": "dpad", "x": 30, "y": 77, "r": 20},
-    {"type": "trackpad", "name": "rpad", "mode": "right", "x": 68, "y": 75, "r": 20},
+    {"type": "trackpad", "name": "rpad", "mode": "right", "x": 67, "y": 75, "r": 20},
     {"type": "button", "name": "LT", "label": "LT", "x": 8, "y": 8, "w": 22, "h": 12},
     {"type": "button", "name": "LB", "label": "LB", "x": 22, "y": 8, "w": 22, "h": 12},
     {"type": "button", "name": "RB", "label": "RB", "x": 78, "y": 8, "w": 22, "h": 12},
     {"type": "button", "name": "RT", "label": "RT", "x": 92, "y": 8, "w": 22, "h": 12},
-    {"type": "button", "name": "Back", "label": "Back", "icon": "view", "x": 42, "y": 40, "w": 11, "h": 11},
-    {"type": "button", "name": "Guide", "label": "Home", "icon": "home", "x": 50, "y": 26, "w": 11, "h": 11},
-    {"type": "button", "name": "Start", "label": "Start", "icon": "menu", "x": 58, "y": 40, "w": 11, "h": 11},
-    {"type": "button", "name": "L3", "label": "L3", "x": 8, "y": 80, "w": 11, "h": 11},
-    {"type": "button", "name": "R3", "label": "R3", "x": 91, "y": 80, "w": 11, "h": 11},
-    {"type": "button", "name": "Y", "label": "Y", "x": 84, "y": 23, "w": 15, "h": 15},
-    {"type": "button", "name": "X", "label": "X", "x": 77, "y": 38, "w": 15, "h": 15},
-    {"type": "button", "name": "B", "label": "B", "x": 91, "y": 38, "w": 15, "h": 15},
-    {"type": "button", "name": "A", "label": "A", "x": 84, "y": 53, "w": 15, "h": 15}
+    {"type": "button", "name": "Back", "label": "Back", "icon": "view", "x": 42, "y": 40, "w": 12, "h": 12},
+    {"type": "button", "name": "Guide", "label": "Home", "icon": "home", "x": 50, "y": 26, "w": 12, "h": 12},
+    {"type": "button", "name": "Start", "label": "Start", "icon": "menu", "x": 58, "y": 40, "w": 12, "h": 12},
+    {"type": "button", "name": "L3", "label": "L3", "x": 8, "y": 80, "w": 12, "h": 12},
+    {"type": "button", "name": "R3", "label": "R3", "x": 91, "y": 80, "w": 12, "h": 12},
+    {"type": "button", "name": "Y", "label": "Y", "x": 84, "y": 24, "w": 18, "h": 18},
+    {"type": "button", "name": "X", "label": "X", "x": 74, "y": 42, "w": 18, "h": 18},
+    {"type": "button", "name": "B", "label": "B", "x": 94, "y": 42, "w": 18, "h": 18},
+    {"type": "button", "name": "A", "label": "A", "x": 84, "y": 60, "w": 18, "h": 18}
   ]
 }

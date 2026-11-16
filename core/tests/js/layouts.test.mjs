@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import {
-  ICONS, SWITCH_ZONE, THEMES, chooseLayout, layoutProblems, loadLayout, nextLayout, saveLayout, savedLayout,
+  ICONS, MIN_SIZE, SWITCH_ZONE, THEMES, chooseLayout, layoutProblems, loadLayout, nextLayout, saveLayout, savedLayout,
 } from "../../phonepad/web/layouts.js";
 
 const WEB = new URL("../../phonepad/web/", import.meta.url);
@@ -63,7 +63,7 @@ test("validator reports a duplicate button", () => {
 
 test("validator reports a third stick", () => {
   const p = layoutProblems(variant((cs) => cs.push({ type: "stick", name: "left", x: 50, y: 50, r: 2 })));
-  assert.deepEqual(p, ["left stick is driven 2 times"]);
+  assert.deepEqual(p, ["left: smaller than the minimum (4 < 36)", "left stick is driven 2 times"]);
 });
 
 test("validator reports a position outside 0..100", () => {
@@ -364,7 +364,7 @@ test("validator: one dpad provides Up/Down/Left/Right; mixing, doubling or dropp
   const extraUp = layoutProblems(variant((cs) => cs.push({ type: "button", name: "Up", label: "U", x: 50, y: 50, w: 4, h: 4 })));
   assert.deepEqual(extraUp, ["Up appears 2 times"]);
   const two = layoutProblems(variant((cs) => cs.push({ ...dpad, x: 50, y: 50, r: 2 })));
-  assert.deepEqual(two, ["Up appears 2 times", "Down appears 2 times", "Left appears 2 times", "Right appears 2 times"]);
+  assert.deepEqual(two, ["dpad: smaller than the minimum (4 < 40)", "Up appears 2 times", "Down appears 2 times", "Left appears 2 times", "Right appears 2 times"]);
   const none = layoutProblems(variant((cs) => cs.splice(cs.indexOf(find(cs, "dpad")), 1)));
   assert.deepEqual(none, ["Up is missing", "Down is missing", "Left is missing", "Right is missing"]);
   // four D-pad buttons instead of the dpad is still a valid layout
@@ -410,4 +410,58 @@ test("dish colours come from the theme block", () => {
     for (const [id, { vars }] of Object.entries(themes)) assert.ok(vars.has(v), `${id} defines ${v}`);
   }
   assert.match(base, /\.dpad \{[^}]*conic-gradient/); // faceted tiles drawn by CSS, no images
+});
+
+// Minimum button size (#18): % of screen height, short side for buttons, diameter for circles
+
+const steam = JSON.parse(read("layouts/steam.json"));
+/** `layout` with `edit` applied to a deep copy of its controls. */
+const edited = (layout, edit) => ({ controls: structuredClone(layout.controls).map((c) => { edit(c); return c; }) });
+/** The MIN_SIZE key the ticket puts each real control under. */
+const minFor = (c) => MIN_SIZE[c.type === "button" ? c.name : c.type === "dpad" || c.mode === "dpad" ? "dpad" : "stick"];
+
+test("minimum sizes are the ticket's", () => {
+  assert.deepEqual(MIN_SIZE, {
+    dpad: 40, stick: 36, A: 18, B: 18, X: 18, Y: 18,
+    Back: 12, Start: 12, Guide: 12, L3: 12, R3: 12, LB: 12, RB: 12, LT: 12, RT: 12,
+  });
+});
+
+test("every listed layout meets every minimum size", () => {
+  for (const { id } of index.layouts) {
+    const layout = JSON.parse(read(`layouts/${id}.json`));
+    for (const c of layout.controls) {
+      const got = c.type === "button" ? Math.min(c.w, c.h) : 2 * c.r;
+      assert.ok(minFor(c) !== undefined, `${id}: ${c.name} has a minimum`);
+      assert.ok(got >= minFor(c), `${id}: ${c.name} ${got} < ${minFor(c)}`);
+    }
+    assert.ok(!layoutProblems(layout).some((p) => p.includes("smaller")), id);
+  }
+});
+
+test("controls exactly at the minimum pass", () => {
+  for (const layout of [xbox, steam]) {
+    const exact = edited(layout, (c) => {
+      if (c.type !== "button") c.r = minFor(c) / 2;
+      else if (c.w <= c.h) c.w = c.h = minFor(c);
+      else c.h = minFor(c); // wide shoulder: shrink the short side only
+    });
+    for (const c of exact.controls) assert.equal(c.type === "button" ? Math.min(c.w, c.h) : 2 * c.r, minFor(c), c.name);
+    assert.deepEqual(layoutProblems(exact), [], layout.name);
+  }
+});
+
+test("validator reports each kind of control below its minimum", () => {
+  const shrink = (layout, name, fields) => layoutProblems(edited(layout, (c) => { if (c.name === name) Object.assign(c, fields); }));
+  assert.deepEqual(shrink(xbox, "A", { w: 17, h: 17 }), ["A: smaller than the minimum (17 < 18)"]); // face
+  assert.deepEqual(shrink(xbox, "Y", { w: 30, h: 17.5 }), ["Y: smaller than the minimum (17.5 < 18)"]); // short side counts
+  assert.deepEqual(shrink(xbox, "Back", { w: 11, h: 11 }), ["Back: smaller than the minimum (11 < 12)"]); // small
+  assert.deepEqual(shrink(steam, "R3", { h: 11 }), ["R3: smaller than the minimum (11 < 12)"]);
+  assert.deepEqual(shrink(xbox, "LT", { h: 11 }), ["LT: smaller than the minimum (11 < 12)"]); // shoulder
+  assert.deepEqual(shrink(xbox, "right", { r: 17 }), ["right: smaller than the minimum (34 < 36)"]); // stick
+  assert.deepEqual(shrink(xbox, "dpad", { r: 19 }), ["dpad: smaller than the minimum (38 < 40)"]); // dish
+  assert.deepEqual(shrink(steam, "lpad", { r: 19 }), ["lpad: smaller than the minimum (38 < 40)"]); // dpad-mode trackpad
+  assert.deepEqual(shrink(steam, "rpad", { r: 17 }), ["rpad: smaller than the minimum (34 < 36)"]); // stick-mode trackpad
+  // malformed sizes get the range message only, not a size one too
+  assert.deepEqual(shrink(xbox, "A", { w: "1" }), ["A: w must be a number 0..100"]);
 });
