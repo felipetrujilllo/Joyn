@@ -3,12 +3,12 @@
 // The #switch button swaps layouts in place; the page (and client.js's connection) never reloads.
 import { AXIS_MAX, box, createTracker } from "./state.js";
 import { bit } from "./buttons.js";
-import { chooseLayout, loadLayout, nextLayout, saveLayout, savedLayout } from "./layouts.js";
+import { ICONS, chooseLayout, loadLayout, nextLayout, saveLayout, savedLayout } from "./layouts.js";
 
 const pad = document.getElementById("pad");
 const switcher = document.getElementById("switch");
 const store = (() => { try { return localStorage; } catch { return null; } })(); // can throw when disabled
-let layout = null; // {id, index, controls} of the layout on screen
+let layout = null; // {id, index, controls, theme} of the layout on screen
 let controls = [];
 let els = [];
 let tracker = createTracker([], innerWidth, innerHeight);
@@ -31,13 +31,16 @@ async function show(pick) {
     return false;
   }
   pad.className = "";
+  document.documentElement.dataset.theme = loaded.theme; // style.css [data-theme] picks the colours
   layout = loaded;
   controls = loaded.controls;
   tracker = createTracker(controls, innerWidth, innerHeight);
   els = controls.map((c) => {
     const el = document.createElement("div");
     el.className = c.type;
+    el.dataset.name = c.name;
     if (c.type === "stick") el.appendChild(document.createElement("div")).className = "knob";
+    else if (c.icon) { el.innerHTML = ICONS[c.icon]; el.setAttribute("aria-label", c.label); } // validated icon name
     else el.textContent = c.label;
     return pad.appendChild(el);
   });

@@ -13,6 +13,15 @@ const ID_RE = /^[\w-]+$/;
  */
 export const SWITCH_ZONE = { type: "button", name: "switch", x: 36, y: 7, w: 14, h: 10 };
 
+/** Themes a layout may name in `"theme"`; each needs a `[data-theme="<id>"]` block in style.css. */
+export const THEMES = ["xbox"];
+export const DEFAULT_THEME = "xbox";
+
+/** Icons a button may name in `"icon"`, drawn as inline SVG in place of its label (no network). */
+export const ICONS = {
+  home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3 2 12h3v9h5v-6h4v6h5v-9h3z"/></svg>',
+};
+
 /**
  * Check a parsed layout file.
  * @param {any} layout parsed `layouts/<id>.json`
@@ -23,6 +32,8 @@ export function layoutProblems(layout) {
   if (!Array.isArray(controls)) return ["no controls list"];
   const problems = [];
   const sized = [];
+  const t = layout.theme;
+  if (t !== undefined && !(typeof t === "string" && ID_RE.test(t) && THEMES.includes(t))) problems.push(`unknown theme ${t}`);
   for (const c of controls) {
     const keys = { stick: ["x", "y", "r"], button: ["x", "y", "w", "h"] }[c?.type];
     if (!keys) { problems.push(`${c?.name}: unknown type ${c?.type}`); continue; }
@@ -30,6 +41,7 @@ export function layoutProblems(layout) {
     if (bad.length) problems.push(`${c.name}: ${bad.join(", ")} must be a number 0..100`);
     else sized.push(c);
     if (c.type === "button" && !c.label) problems.push(`${c.name}: no label`);
+    if (c.icon !== undefined && !Object.hasOwn(ICONS, c.icon)) problems.push(`${c.name}: unknown icon ${c.icon}`);
   }
   const names = controls.filter((c) => c?.type === "button").map((c) => c.name);
   for (const b of BUTTONS) {
@@ -95,7 +107,7 @@ export function saveLayout(storage, id) {
  * Load one layout. Never throws: any failure becomes a short message for the page.
  * @param {(path: string) => Promise<{ok: boolean, status: number, json(): Promise<any>}>} fetchFn e.g. `fetch`
  * @param {(index: object) => string} [pick] chooses the id from the parsed index; unlisted ids fall back to the default
- * @returns {Promise<{id: string, index: object, controls: object[]} | {error: string}>}
+ * @returns {Promise<{id: string, index: object, controls: object[], theme: string} | {error: string}>}
  */
 export async function loadLayout(fetchFn, pick = (index) => index.default) {
   let id = "?";
@@ -114,7 +126,7 @@ export async function loadLayout(fetchFn, pick = (index) => index.default) {
     if (problems.length) {
       throw new Error(problems[0] + (problems.length > 1 ? ` (+${problems.length - 1} more)` : ""));
     }
-    return { id, index, controls: layout.controls };
+    return { id, index, controls: layout.controls, theme: layout.theme ?? DEFAULT_THEME };
   } catch (e) {
     return { error: `Couldn't load the controller layout (${id}): ${e.message}` };
   }

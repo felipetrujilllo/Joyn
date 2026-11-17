@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import {
-  SWITCH_ZONE, chooseLayout, layoutProblems, loadLayout, nextLayout, saveLayout, savedLayout,
+  ICONS, SWITCH_ZONE, THEMES, chooseLayout, layoutProblems, loadLayout, nextLayout, saveLayout, savedLayout,
 } from "../../phonepad/web/layouts.js";
 
 const WEB = new URL("../../phonepad/web/", import.meta.url);
@@ -94,7 +94,7 @@ test("validator reports malformed files", () => {
 // Loader: controls or a short message, never a throw
 
 test("loader returns the default layout's controls", async () => {
-  assert.deepEqual(await loadLayout(served()), { id: "xbox", index, controls: xbox.controls });
+  assert.deepEqual(await loadLayout(served()), { id: "xbox", index, controls: xbox.controls, theme: "xbox" });
 });
 
 test("loader turns a missing layout file into a message", async () => {
@@ -191,8 +191,8 @@ test("loader loads the layout pick() names, and unknown picks load the default",
   const other = variant((cs) => { find(cs, "A").label = "Other A"; });
   const twoIndex = { default: "xbox", layouts: [{ id: "xbox", name: "Xbox" }, { id: "other", name: "Other" }] };
   const f = served({ "layouts/index.json": JSON.stringify(twoIndex), "layouts/other.json": JSON.stringify(other) });
-  assert.deepEqual(await loadLayout(f, () => "other"), { id: "other", index: twoIndex, controls: other.controls });
-  assert.deepEqual(await loadLayout(f, (ix) => nextLayout(ix, "other")), { id: "xbox", index: twoIndex, controls: xbox.controls });
+  assert.deepEqual(await loadLayout(f, () => "other"), { id: "other", index: twoIndex, controls: other.controls, theme: "xbox" });
+  assert.deepEqual(await loadLayout(f, (ix) => nextLayout(ix, "other")), { id: "xbox", index: twoIndex, controls: xbox.controls, theme: "xbox" });
   for (const bad of ["steam", "../x", undefined]) {
     assert.equal((await loadLayout(f, () => bad)).id, "xbox", String(bad));
   }
@@ -245,4 +245,111 @@ test("switch button sits outside #pad, at SWITCH_ZONE, with no-gesture CSS", () 
   assert.ok(rule.includes(`width: ${z.w}vh`) && rule.includes(`height: ${z.h}vh`), "size");
   assert.ok(z.h >= 8, "big enough to tap");
   for (const r of ["touch-action: none", "user-select: none", "-webkit-user-select: none"]) assert.ok(rule.includes(r), r);
+});
+
+// Themes and icons
+
+/** style.css split into theme blocks ({id: Set of --names defined}) and the rest (base rules). */
+const themeCss = () => {
+  const css = read("style.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  const themes = {};
+  const base = css.replace(/\[data-theme="([\w-]+)"\]\s*\{([^}]*)\}/g, (_, id, body) => {
+    themes[id] = { body, vars: new Set(body.match(/--[\w-]+(?=\s*:)/g)) };
+    return "";
+  });
+  return { base, themes };
+};
+
+test("real xbox layout names the xbox theme; a missing theme loads as the default", async () => {
+  assert.equal(xbox.theme, "xbox");
+  const { theme, ...noTheme } = xbox;
+  assert.deepEqual(layoutProblems(noTheme), []);
+  assert.equal((await loadLayout(served({ "layouts/xbox.json": JSON.stringify(noTheme) }))).theme, "xbox");
+});
+
+test("validator accepts a known theme and rejects an unknown or unsafe one", () => {
+  assert.deepEqual(layoutProblems({ ...xbox, theme: "xbox" }), []);
+  for (const bad of ["steam", "../xbox", "xbox;}", 7, null, ""]) {
+    assert.deepEqual(layoutProblems({ ...xbox, theme: bad }), [`unknown theme ${bad}`], String(bad));
+  }
+});
+
+test("loader returns the layout's theme", async () => {
+  const r = await loadLayout(served());
+  assert.equal(r.theme, "xbox");
+});
+
+test("every theme defines every colour the base rules use, and every named theme exists", () => {
+  const { base, themes } = themeCss();
+  const used = new Set(base.match(/var\(--[\w-]+/g).map((v) => v.slice(4)));
+  const local = new Set(base.match(/--[\w-]+(?=\s*:)/g)); // set by base rules themselves (e.g. --face)
+  assert.ok(used.size > 5);
+  assert.deepEqual(Object.keys(themes).sort(), [...THEMES].sort());
+  for (const [id, { vars }] of Object.entries(themes)) {
+    for (const v of used) if (!local.has(v)) assert.ok(vars.has(v), `${id} lacks ${v}`);
+  }
+  for (const f of readdirSync(new URL("layouts/", WEB)).filter((f) => f !== "index.json")) {
+    const t = JSON.parse(read(`layouts/${f}`)).theme;
+    if (t !== undefined) assert.ok(t in themes, `${f}: theme ${t} not in style.css`);
+  }
+});
+
+test("theme blocks hold only colours, so the no-zoom/no-scroll and rotate rules apply in every theme", () => {
+  const { base, themes } = themeCss();
+  for (const [id, { body }] of Object.entries(themes)) {
+    for (const decl of body.split(";").map((d) => d.trim()).filter(Boolean)) {
+      assert.match(decl, /^--[\w-]+\s*:/, `${id}: ${decl}`);
+    }
+  }
+  for (const rule of ["touch-action: none", "user-select: none", "-webkit-user-select: none",
+    "-webkit-touch-callout: none", "overflow: hidden"]) {
+    assert.ok(base.includes(rule), rule);
+  }
+  assert.match(base, /@media \(orientation: portrait\)\s*\{\s*#rotate\s*\{\s*display: flex/);
+  assert.doesNotMatch(base, /data-theme/); // no theme-specific rule can override them
+});
+
+test("xbox theme colours A green, B red, X blue, Y yellow", () => {
+  const { base, themes } = themeCss();
+  const css = read("style.css");
+  const hue = (v) => {
+    const hex = css.match(new RegExp(`\\[data-theme="xbox"\\][^}]*${v}:\\s*#([0-9a-f]{6})`, "i"))[1];
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    return { r, g, b };
+  };
+  const { r: ar, g: ag, b: ab } = hue("--a"); assert.ok(ag > ar && ag > ab, "A green");
+  const { r: br, g: bg, b: bb } = hue("--b"); assert.ok(br > bg && br > bb, "B red");
+  const { r: xr, g: xg, b: xb } = hue("--x"); assert.ok(xb > xr && xb > xg, "X blue");
+  const { r: yr, g: yg, b: yb } = hue("--y"); assert.ok(yr > yb + 100 && yg > yb + 100, "Y yellow");
+  for (const n of ["A", "B", "X", "Y"]) {
+    assert.match(base, new RegExp(`\\.button\\[data-name="${n}"\\] \\{ --face: var\\(--${n.toLowerCase()}\\); \\}`), n);
+  }
+  assert.match(base, /\.button\[data-name="A"\][^{]*\{\s*color: var\(--face\);\s*border-color: var\(--face\);/);
+  assert.match(base, /\.button\.on\[data-name="A"\][^{]*\{\s*background: var\(--face\);\s*color: var\(--on-face\);/);
+  assert.ok(themes.xbox.vars.has("--on-face"));
+});
+
+test("Guide shows a local home icon, keeps a label, and unknown icons are rejected", () => {
+  const guide = find(xbox.controls, "Guide");
+  assert.equal(guide.icon, "home");
+  assert.ok(guide.label);
+  assert.match(ICONS.home, /^<svg [^>]*viewBox="[^"]+"[^>]*>.*<\/svg>$/);
+  assert.doesNotMatch(ICONS.home, /https?:|url\(|<image|href/i);
+  const p = layoutProblems(variant((cs) => { find(cs, "Guide").icon = "xbox-logo"; }));
+  assert.deepEqual(p, ["Guide: unknown icon xbox-logo"]);
+  const noLabel = layoutProblems(variant((cs) => { delete find(cs, "Guide").label; }));
+  assert.deepEqual(noLabel, ["Guide: no label"]);
+  const js = read("controller.js");
+  assert.match(js, /import \{[^}]*\bICONS\b[^}]*\} from "\.\/layouts\.js";/);
+  assert.match(js, /else if \(c\.icon\) \{ el\.innerHTML = ICONS\[c\.icon\]; el\.setAttribute\("aria-label", c\.label\); \}/);
+});
+
+test("show() applies the layout's theme and tags each control by name, every time a layout loads", () => {
+  const js = read("controller.js");
+  const show = js.slice(js.indexOf("async function show("), js.indexOf("function place("));
+  const success = show.slice(show.indexOf('pad.className = "";'));
+  assert.match(success, /document\.documentElement\.dataset\.theme = loaded\.theme;/);
+  assert.match(show, /el\.dataset\.name = c\.name;/);
+  // the page has a theme before the first layout loads (e.g. the error message)
+  assert.match(read("index.html"), /<html lang="en" data-theme="xbox">/);
 });
