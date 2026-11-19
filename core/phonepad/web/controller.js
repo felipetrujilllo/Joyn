@@ -1,26 +1,56 @@
-// DOM glue: render the default layout from layouts/, feed pointer events to the tracker, draw state.
+// DOM glue: render a layout from layouts/, feed pointer events to the tracker, draw state.
 // The current state is published as `padstate` events on `document` (detail: {b, lx, ly, rx, ry}).
+// The #switch button swaps layouts in place; the page (and client.js's connection) never reloads.
 import { AXIS_MAX, box, createTracker } from "./state.js";
 import { bit } from "./buttons.js";
-import { loadLayout } from "./layouts.js";
+import { chooseLayout, loadLayout, nextLayout, saveLayout, savedLayout } from "./layouts.js";
 
 const pad = document.getElementById("pad");
-const loaded = await loadLayout((path) => fetch(path));
-if (loaded.error) {
-  pad.className = "error";
-  pad.textContent = loaded.error;
-  throw new Error(loaded.error); // stop here: no controls to wire up
-}
-const { controls } = loaded;
-const tracker = createTracker(controls, innerWidth, innerHeight);
-const els = controls.map((c) => {
-  const el = document.createElement("div");
-  el.className = c.type;
-  if (c.type === "stick") el.appendChild(document.createElement("div")).className = "knob";
-  else el.textContent = c.label;
-  return pad.appendChild(el);
-});
+const switcher = document.getElementById("switch");
+const store = (() => { try { return localStorage; } catch { return null; } })(); // can throw when disabled
+let layout = null; // {id, index, controls} of the layout on screen
+let controls = [];
+let els = [];
+let tracker = createTracker([], innerWidth, innerHeight);
 let last = "";
+
+/**
+ * Load the layout `pick(index)` names and build its controls, replacing the current ones.
+ * On failure the pad shows the loader's message and has no controls.
+ * @param {(index: object) => string} pick
+ * @returns {Promise<boolean>} true when the layout is on screen
+ */
+async function show(pick) {
+  const loaded = await loadLayout((path) => fetch(path), pick);
+  pad.replaceChildren();
+  if (loaded.error) {
+    pad.className = "error";
+    pad.textContent = loaded.error;
+    controls = els = [];
+    tracker = createTracker(controls, innerWidth, innerHeight);
+    return false;
+  }
+  pad.className = "";
+  layout = loaded;
+  controls = loaded.controls;
+  tracker = createTracker(controls, innerWidth, innerHeight);
+  els = controls.map((c) => {
+    const el = document.createElement("div");
+    el.className = c.type;
+    if (c.type === "stick") el.appendChild(document.createElement("div")).className = "knob";
+    else el.textContent = c.label;
+    return pad.appendChild(el);
+  });
+  // ?. / ?? : a malformed index.json (default not listed) must not break the page or the button
+  const entry = Array.isArray(loaded.index.layouts) ? loaded.index.layouts.find((l) => l?.id === loaded.id) : null;
+  switcher.textContent = `⇄ ${entry?.name ?? loaded.id}`;
+  switcher.hidden = false;
+  saveLayout(store, loaded.id);
+  last = "";
+  place();
+  update();
+  return true;
+}
 
 /** Position every control for the current screen size. */
 function place() {
@@ -48,6 +78,11 @@ function update() {
   document.dispatchEvent(new CustomEvent("padstate", { detail: s }));
 }
 
+if (!(await show((index) => chooseLayout(index, { search: location.search, saved: savedLayout(store) })))) {
+  throw new Error(pad.textContent); // stop here: no controls to wire up
+}
+
+// Listeners use whatever `tracker` is current, so a layout switch adds none.
 pad.addEventListener("pointerdown", (e) => {
   if (!tracker.down(e.pointerId, e.clientX, e.clientY)) return;
   pad.setPointerCapture(e.pointerId);
@@ -65,5 +100,16 @@ for (const type of ["contextmenu", "gesturestart", "dblclick"]) {
   document.addEventListener(type, (e) => e.preventDefault());
 }
 addEventListener("resize", place);
-place();
-update();
+
+// #switch sits outside #pad, so its touches never reach the tracker.
+let switching = false;
+switcher.addEventListener("click", async () => {
+  if (switching) return;
+  switching = true;
+  try {
+    releaseAll(); // neutral padstate goes out before the old controls disappear
+    await show((index) => nextLayout(index, layout.id));
+  } finally {
+    switching = false; // even if the switch failed, the button keeps working
+  }
+});

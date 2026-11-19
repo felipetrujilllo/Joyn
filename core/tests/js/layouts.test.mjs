@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { layoutProblems, loadLayout } from "../../phonepad/web/layouts.js";
+import {
+  SWITCH_ZONE, chooseLayout, layoutProblems, loadLayout, nextLayout, saveLayout, savedLayout,
+} from "../../phonepad/web/layouts.js";
 
 const WEB = new URL("../../phonepad/web/", import.meta.url);
 const read = (f) => readFileSync(new URL(f, WEB), "utf8");
@@ -92,7 +94,7 @@ test("validator reports malformed files", () => {
 // Loader: controls or a short message, never a throw
 
 test("loader returns the default layout's controls", async () => {
-  assert.deepEqual(await loadLayout(served()), { controls: xbox.controls });
+  assert.deepEqual(await loadLayout(served()), { id: "xbox", index, controls: xbox.controls });
 });
 
 test("loader turns a missing layout file into a message", async () => {
@@ -131,9 +133,116 @@ test("loader survives fetch itself failing (server gone)", async () => {
 
 test("page shows the loader's message instead of starting the controls", () => {
   const js = read("controller.js");
-  assert.match(js, /import \{ loadLayout \} from "\.\/layouts\.js";/);
-  assert.match(js, /if \(loaded\.error\) \{\s*pad\.className = "error";\s*pad\.textContent = loaded\.error;\s*throw/);
+  assert.match(js, /import \{[^}]*\bloadLayout\b[^}]*\} from "\.\/layouts\.js";/);
+  assert.match(js, /if \(loaded\.error\) \{\s*pad\.className = "error";\s*pad\.textContent = loaded\.error;[^}]*return false;/);
+  assert.match(js, /if \(!\(await show\([^\n]*\)\)\) \{\s*throw/); // a failed first load stops before wiring listeners
   assert.ok(js.indexOf("if (loaded.error)") < js.indexOf("createTracker(controls"));
   assert.doesNotMatch(js, /layout\.json/);
   assert.match(read("style.css"), /#pad\.error \{/);
+});
+
+test("validator reports a control under the layout switch button", () => {
+  const p = layoutProblems(variant((cs) => { Object.assign(find(cs, "Back"), { x: SWITCH_ZONE.x, y: SWITCH_ZONE.y }); }));
+  assert.ok(p.includes("Back overlaps the layout switch at 1000x500"), p.join("; "));
+  assert.ok(p.includes("Back overlaps the layout switch at 1600x900"), p.join("; "));
+  assert.ok(!layoutProblems(xbox).some((x) => x.includes("switch")));
+});
+
+// Choosing a layout: link, then saved choice, then the default
+
+const three = { default: "b", layouts: [{ id: "a", name: "A" }, { id: "b", name: "B" }, { id: "c", name: "C" }] };
+
+test("chooseLayout: link wins over saved, saved over default", () => {
+  assert.equal(chooseLayout(three, { search: "?k=tok&layout=c", saved: "a" }), "c");
+  assert.equal(chooseLayout(three, { search: "?k=tok", saved: "a" }), "a");
+  assert.equal(chooseLayout(three, { search: "", saved: null }), "b");
+  assert.equal(chooseLayout(three), "b");
+});
+
+test("chooseLayout: unknown or unsafe ids fall back", () => {
+  assert.equal(chooseLayout(three, { search: "?layout=steam", saved: "a" }), "a");
+  assert.equal(chooseLayout(three, { search: "?layout=../x", saved: "../x" }), "b");
+  assert.equal(chooseLayout(three, { search: "?layout=", saved: "" }), "b");
+  assert.equal(chooseLayout(index, { search: "?layout=steam" }), "xbox"); // real index: unknown -> Xbox
+});
+
+test("nextLayout cycles and wraps; one layout returns itself", () => {
+  assert.equal(nextLayout(three, "a"), "b");
+  assert.equal(nextLayout(three, "b"), "c");
+  assert.equal(nextLayout(three, "c"), "a");
+  assert.equal(nextLayout(index, "xbox"), "xbox");
+});
+
+test("saved layout choice round-trips and survives broken storage", () => {
+  const map = new Map();
+  const storage = { getItem: (k) => map.get(k) ?? null, setItem: (k, v) => map.set(k, v) };
+  assert.equal(savedLayout(storage), null);
+  saveLayout(storage, "c");
+  assert.equal(savedLayout(storage), "c");
+  assert.equal(map.get("phonepad.layout"), "c");
+  const broken = { getItem() { throw new Error("denied"); }, setItem() { throw new Error("denied"); } };
+  assert.equal(savedLayout(broken), null);
+  assert.doesNotThrow(() => saveLayout(broken, "c"));
+  assert.equal(savedLayout(null), null);
+  assert.doesNotThrow(() => saveLayout(null, "c"));
+});
+
+test("loader loads the layout pick() names, and unknown picks load the default", async () => {
+  const other = variant((cs) => { find(cs, "A").label = "Other A"; });
+  const twoIndex = { default: "xbox", layouts: [{ id: "xbox", name: "Xbox" }, { id: "other", name: "Other" }] };
+  const f = served({ "layouts/index.json": JSON.stringify(twoIndex), "layouts/other.json": JSON.stringify(other) });
+  assert.deepEqual(await loadLayout(f, () => "other"), { id: "other", index: twoIndex, controls: other.controls });
+  assert.deepEqual(await loadLayout(f, (ix) => nextLayout(ix, "other")), { id: "xbox", index: twoIndex, controls: xbox.controls });
+  for (const bad of ["steam", "../x", undefined]) {
+    assert.equal((await loadLayout(f, () => bad)).id, "xbox", String(bad));
+  }
+  const missing = served({ "layouts/index.json": JSON.stringify(twoIndex) });
+  assert.deepEqual(await loadLayout(missing, () => "other"), { error: "Couldn't load the controller layout (other): layouts/other.json returned 404" });
+});
+
+// Switching on the page (static: no browser in CI)
+
+test("switching releases everything first, saves the choice and never reloads", () => {
+  const js = read("controller.js");
+  const handler = js.slice(js.indexOf('switcher.addEventListener("click"'));
+  assert.ok(handler.indexOf("releaseAll()") > -1 && handler.indexOf("releaseAll()") < handler.indexOf("await show("), "releaseAll before building");
+  assert.match(handler, /show\(\(index\) => nextLayout\(index, layout\.id\)\)/);
+  assert.match(js, /const releaseAll = \(\) => \{ tracker\.releaseAll\(\); update\(\); \};/);
+  const show = js.slice(js.indexOf("async function show("), js.indexOf("function place("));
+  assert.ok(show.indexOf("pad.replaceChildren()") < show.indexOf("createTracker(controls"), "old controls removed before new ones");
+  assert.match(show, /saveLayout\(store, loaded\.id\)/);
+  assert.match(js, /chooseLayout\(index, \{ search: location\.search, saved: savedLayout\(store\) \}\)/);
+  assert.doesNotMatch(js, /location\.(reload|assign|replace|href\s*=)/);
+  // listeners are added once, at top level, not inside show()
+  assert.doesNotMatch(show, /addEventListener/);
+});
+
+test("a malformed index can't jam the switch button", async () => {
+  const js = read("controller.js");
+  const handler = js.slice(js.indexOf('switcher.addEventListener("click"'));
+  // the busy flag is reset in a finally, so a failed or throwing switch never leaves the button dead
+  assert.match(handler, /switching = true;\s*try \{[\s\S]*await show\([\s\S]*\} finally \{\s*switching = false;/);
+  // the label falls back to the id instead of reading .name of a missing entry
+  assert.match(js, /\$\{entry\?\.name \?\? loaded\.id\}/);
+  assert.doesNotMatch(js, /\.find\([^)]*\)\.name/);
+  // a list whose default isn't listed still loads (the label code above must cope with it)
+  const r = await loadLayout(served({ "layouts/index.json": JSON.stringify({ default: "xbox", layouts: [{ id: "other" }] }) }));
+  assert.equal(r.id, "xbox");
+  // and a list that isn't a list turns a switch into a message, not a throw
+  const broken = served({ "layouts/index.json": JSON.stringify({ default: "xbox", layouts: "nope" }) });
+  const s = await loadLayout(broken, (ix) => nextLayout(ix, "xbox"));
+  assert.match(s.error, /^Couldn't load the controller layout/);
+});
+
+test("switch button sits outside #pad, at SWITCH_ZONE, with no-gesture CSS", () => {
+  const html = read("index.html");
+  assert.match(html, /<div id="pad"><\/div>\s*(<!--[^>]*-->\s*)?<button id="switch" type="button" hidden>/);
+  const css = read("style.css");
+  const rule = css.match(/#switch \{([^}]*)\}/)[1];
+  const z = SWITCH_ZONE;
+  assert.ok(rule.includes(`left: calc(${z.x}vw - ${z.w / 2}vh)`), "left");
+  assert.ok(rule.includes(`top: ${z.y - z.h / 2}vh`), "top");
+  assert.ok(rule.includes(`width: ${z.w}vh`) && rule.includes(`height: ${z.h}vh`), "size");
+  assert.ok(z.h >= 8, "big enough to tap");
+  for (const r of ["touch-action: none", "user-select: none", "-webkit-user-select: none"]) assert.ok(rule.includes(r), r);
 });

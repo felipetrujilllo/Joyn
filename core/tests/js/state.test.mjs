@@ -226,7 +226,7 @@ test("page has the viewport meta, rotate overlay and no-touch-gesture CSS", () =
   }
   assert.match(css, /@media \(orientation: portrait\)\s*\{\s*#rotate\s*\{\s*display: flex/);
   const js = read("controller.js");
-  for (const s of ["setPointerCapture", "pointercancel", "padstate", "loadLayout((path) => fetch(path))"]) {
+  for (const s of ["setPointerCapture", "pointercancel", "padstate", "loadLayout((path) => fetch(path), pick)"]) {
     assert.ok(js.includes(s), s);
   }
 });

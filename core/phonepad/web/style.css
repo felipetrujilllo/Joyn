@@ -56,6 +56,27 @@ html, body {
   pointer-events: none;
 }
 
+/* Matches SWITCH_ZONE in layouts.js: centre 36% across, 7% down; 14 x 10 % of height. */
+#switch {
+  position: absolute;
+  left: calc(36vw - 7vh);
+  top: 2vh;
+  width: 14vh;
+  height: 10vh;
+  padding: 0;
+  border: 1px solid #444;
+  border-radius: 1.5vh;
+  background: transparent;
+  color: #888;
+  font: bold 2.5vh system-ui, sans-serif;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+}
+
+#switch[hidden] { display: none; }
+
 #rotate {
   display: none;
   position: absolute;
