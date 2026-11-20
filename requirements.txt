@@ -1,4 +1,4 @@
 aiohttp
 qrcode
 pytest
-evdev; sys_platform == "linux"
+evdev-binary; sys_platform == "linux"

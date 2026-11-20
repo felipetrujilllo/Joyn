@@ -25,7 +25,8 @@ def test_main_runs_and_exits_zero():
 def test_requirements_list_deps_and_evdev_is_linux_only():
     lines = (ROOT / "requirements.txt").read_text().splitlines()
     names = {line.split(";")[0].split("=")[0].split(">")[0].strip() for line in lines if line.strip()}
-    assert {"aiohttp", "qrcode", "pytest", "evdev"} <= names
+    # evdev-binary: prebuilt evdev wheels; plain evdev needs kernel headers SteamOS doesn't ship.
+    assert {"aiohttp", "qrcode", "pytest", "evdev-binary"} <= names
     evdev = next(line for line in lines if line.startswith("evdev"))
     assert 'sys_platform == "linux"' in evdev
 
