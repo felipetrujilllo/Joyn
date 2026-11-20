@@ -203,7 +203,7 @@ test("page releases everything when hidden or unfocused", () => {
 });
 
 test("page loads nothing from the network", () => {
-  for (const f of ["index.html", "style.css", "controller.js", "state.js", "buttons.js"]) {
+  for (const f of ["index.html", "style.css", "controller.js", "state.js", "buttons.js", "net.js", "client.js", "manifest.json"]) {
     const text = read(f);
     assert.doesNotMatch(text, /https?:|\/\/[\w-]+\.[a-z]|@import|url\(/i, f);
   }

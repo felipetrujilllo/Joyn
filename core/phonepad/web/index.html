@@ -3,12 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Controller</title>
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="pad"></div>
+  <div id="status">Connecting…</div>
   <div id="rotate">Rotate your phone</div>
+  <!-- client.js first so it hears controller.js's initial padstate -->
+  <script type="module" src="client.js"></script>
   <script type="module" src="controller.js"></script>
 </body>
 </html>
