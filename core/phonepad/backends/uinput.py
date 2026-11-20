@@ -11,7 +11,7 @@ from phonepad.pads import InputBackend
 UINPUT_PATH = "/dev/uinput"
 
 FIX_HINT = (
-    "Run scripts/setup.sh to install the udev rule (re-run it after SteamOS updates), "
+    "Run core/scripts/setup.sh to install the udev rule (re-run it after SteamOS updates), "
     "or use sudo for a first quick test."
 )
 
