@@ -15,7 +15,25 @@ import secrets
 import tempfile
 from pathlib import Path
 
-DEFAULT_PATH = Path.home() / ".config" / "phonepad" / "config.json"
+def _sudo_owner():
+    """Return ``(uid, gid, home)`` of the user who ran ``sudo``, or None when not under sudo."""
+    try:
+        if os.geteuid() != 0 or "SUDO_USER" not in os.environ:
+            return None
+        return (int(os.environ["SUDO_UID"]), int(os.environ["SUDO_GID"]),
+                Path(os.path.expanduser("~" + os.environ["SUDO_USER"])))
+    except (KeyError, ValueError):
+        return None
+
+
+def default_path():
+    """``~/.config/phonepad/config.json`` of the real user, also under ``sudo`` (same token)."""
+    owner = _sudo_owner()
+    home = owner[2] if owner else Path.home()
+    return home / ".config" / "phonepad" / "config.json"
+
+
+DEFAULT_PATH = default_path()
 DEFAULT_PORT = 8642
 TOKEN_BYTES = 16  # 128 bits of randomness
 
@@ -60,10 +78,16 @@ def save(config, path=DEFAULT_PATH):
     then renamed over ``path``, so a crash never leaves a half-written file.
     """
     path = Path(path)
+    created = not path.parent.exists()
     path.parent.mkdir(parents=True, exist_ok=True)
+    owner = _sudo_owner()
+    if owner and created:
+        os.chown(str(path.parent), owner[0], owner[1])  # so later runs without sudo can use it
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".", suffix=".tmp")
     try:
         os.fchmod(fd, 0o600)  # mkstemp already uses 0600; be explicit, it holds secrets
+        if owner:
+            os.fchown(fd, owner[0], owner[1])  # the real user's file, not root's
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)
             f.write("\n")

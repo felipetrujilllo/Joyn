@@ -15,11 +15,11 @@ def test_version():
 
 def test_main_runs_and_exits_zero():
     result = subprocess.run(
-        [sys.executable, "-m", "phonepad"],
+        [sys.executable, "-m", "phonepad", "--version"],
         cwd=ROOT / "core", capture_output=True, text=True, check=False,
     )
     assert result.returncode == 0
-    assert result.stdout.strip() == "phonepad 0.0.1: server not implemented yet"
+    assert result.stdout.strip() == "phonepad 0.0.1"
 
 
 def test_requirements_list_deps_and_evdev_is_linux_only():

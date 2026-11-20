@@ -12,6 +12,38 @@ def test_default_path_is_under_home_config():
     assert config.DEFAULT_PATH.parts[-3:] == (".config", "phonepad", "config.json")
 
 
+def sudo_env(monkeypatch, tmp_path):
+    """Pretend we run as root via sudo from user 'deck' whose home is tmp_path/deck."""
+    home = tmp_path / "deck"
+    home.mkdir()
+    monkeypatch.setattr(config.os, "geteuid", lambda: 0)
+    monkeypatch.setenv("SUDO_USER", "deck")
+    monkeypatch.setenv("SUDO_UID", "1000")
+    monkeypatch.setenv("SUDO_GID", "1001")
+    real = config.os.path.expanduser
+    monkeypatch.setattr(config.os.path, "expanduser", lambda p: str(home) if p == "~deck" else real(p))
+    return home
+
+
+def test_under_sudo_the_default_path_is_the_real_users(monkeypatch, tmp_path):
+    home = sudo_env(monkeypatch, tmp_path)
+    assert config.default_path() == home / ".config" / "phonepad" / "config.json"
+    monkeypatch.setattr(config.os, "geteuid", lambda: 1000)  # not root: ignore SUDO_* leftovers
+    assert config.default_path() == config.Path.home() / ".config" / "phonepad" / "config.json"
+
+
+def test_under_sudo_the_saved_file_and_new_folder_belong_to_the_real_user(monkeypatch, tmp_path):
+    home = sudo_env(monkeypatch, tmp_path)
+    chowned = []
+    monkeypatch.setattr(config.os, "chown", lambda p, u, g: chowned.append((p, u, g)))
+    monkeypatch.setattr(config.os, "fchown", lambda fd, u, g: chowned.append(("fd", u, g)))
+    path = home / ".config" / "phonepad" / "config.json"
+    cfg = config.load(path)
+    assert path.exists() and cfg["token"]
+    assert (str(path.parent), 1000, 1001) in chowned  # the folder it created
+    assert ("fd", 1000, 1001) in chowned  # the file itself
+
+
 def test_first_run_creates_file_with_token_and_default_port(tmp_path):
     path = tmp_path / "nested" / "phonepad" / "config.json"
     cfg = config.load(path)
