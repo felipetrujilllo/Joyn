@@ -22,4 +22,16 @@ Tracked as GitHub issues. Regenerate this snapshot with `gh issue list --state a
 
 | Issue | Task | Owner | Size | Status |
 |-------|------|-------|------|--------|
-| TBD | Pending approval | - | - | - |
+| #1 | Project skeleton, test runners and ## Checks | - | S | open |
+| #2 | Virtual Xbox 360 pad backends (uinput + fake) | - | M | open |
+| #3 | Pad smoke test script (build step 0) | - | S | open |
+| #4 | Phone protocol: parse, validate and clamp snapshots | - | M | open |
+| #5 | PadManager: apply snapshot to evdev events | - | M | open |
+| #6 | Config file with a stable token | - | S | open |
+| #7 | Server: serve the phone page and wire /ws to the pad | - | M | open |
+| #8 | Startup: print the controller URL and a terminal QR | - | S | open |
+| #9 | Phone page: layout and multi-touch to state | - | M | open |
+| #10 | Phone WebSocket client: hello, rate-capped snapshots, reconnect | - | M | open |
+| #11 | End-to-end smoke test and Gaming Mode run | - | S | open |
+
+Critical path: #1 -> #2 -> #5 -> #7 -> #11. #4, #6 and #9 can run in parallel with #2.
