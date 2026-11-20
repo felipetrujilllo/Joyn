@@ -6,7 +6,10 @@ import { AXIS_MAX, DEAD_ZONE, box, createTracker, hitTest, shapeStick } from "..
 
 const WEB = new URL("../../phonepad/web/", import.meta.url);
 const read = (f) => readFileSync(new URL(f, WEB), "utf8");
-const { controls } = JSON.parse(read("layout.json"));
+const readJson = (f) => JSON.parse(read(f));
+const index = readJson("layouts/index.json");
+const LAYOUTS = index.layouts.map(({ id }) => [id, readJson(`layouts/${id}.json`).controls]);
+const { controls } = readJson(`layouts/${index.default}.json`);
 const W = 1000, H = 500;
 const center = (name) => {
   const { cx, cy, hw } = box(controls.find((c) => c.name === name), W, H);
@@ -150,26 +153,28 @@ test("resize rescales the geometry", () => {
 // Layout file
 
 test("layout has every button once, both sticks, valid positions", () => {
-  const names = controls.filter((c) => c.type === "button").map((c) => c.name);
-  assert.deepEqual([...names].sort(), [...BUTTONS].sort());
-  assert.deepEqual(controls.filter((c) => c.type === "stick").map((c) => c.name).sort(), ["left", "right"]);
-  assert.equal(controls.length, BUTTONS.length + 2);
-  for (const c of controls) {
-    for (const k of c.type === "stick" ? ["x", "y", "r"] : ["x", "y", "w", "h"]) {
-      assert.ok(c[k] >= 0 && c[k] <= 100, `${c.name}.${k}`);
+  for (const [id, controls] of LAYOUTS) {
+    const names = controls.filter((c) => c.type === "button").map((c) => c.name);
+    assert.deepEqual([...names].sort(), [...BUTTONS].sort());
+    assert.deepEqual(controls.filter((c) => c.type === "stick").map((c) => c.name).sort(), ["left", "right"]);
+    assert.equal(controls.length, BUTTONS.length + 2);
+    for (const c of controls) {
+      for (const k of c.type === "stick" ? ["x", "y", "r"] : ["x", "y", "w", "h"]) {
+        assert.ok(c[k] >= 0 && c[k] <= 100, `${id} ${c.name}.${k}`);
+      }
+      if (c.type === "button") assert.ok(c.label, `${id} ${c.name} label`);
     }
-    if (c.type === "button") assert.ok(c.label, `${c.name} label`);
   }
 });
 
 test("no two controls overlap on a 2:1 or 16:9 screen", () => {
-  for (const [w, h] of [[1000, 500], [1600, 900]]) {
+  for (const [id, controls] of LAYOUTS) for (const [w, h] of [[1000, 500], [1600, 900]]) {
     const bs = controls.map((c) => box(c, w, h));
     for (let i = 0; i < bs.length; i++) {
       for (let j = i + 1; j < bs.length; j++) {
         const a = bs[i], b = bs[j];
         const apart = Math.abs(a.cx - b.cx) >= a.hw + b.hw || Math.abs(a.cy - b.cy) >= a.hh + b.hh;
-        assert.ok(apart, `${controls[i].name} overlaps ${controls[j].name} at ${w}x${h}`);
+        assert.ok(apart, `${id}: ${controls[i].name} overlaps ${controls[j].name} at ${w}x${h}`);
       }
     }
     for (const b of bs) assert.ok(b.cx - b.hw >= 0 && b.cx + b.hw <= w && b.cy - b.hh >= 0 && b.cy + b.hh <= h);
@@ -203,7 +208,7 @@ test("page releases everything when hidden or unfocused", () => {
 });
 
 test("page loads nothing from the network", () => {
-  for (const f of ["index.html", "style.css", "controller.js", "state.js", "buttons.js", "net.js", "client.js", "manifest.json"]) {
+  for (const f of ["index.html", "style.css", "controller.js", "state.js", "buttons.js", "layouts.js", "net.js", "client.js", "manifest.json"]) {
     const text = read(f);
     assert.doesNotMatch(text, /https?:|\/\/[\w-]+\.[a-z]|@import|url\(/i, f);
   }
@@ -221,7 +226,7 @@ test("page has the viewport meta, rotate overlay and no-touch-gesture CSS", () =
   }
   assert.match(css, /@media \(orientation: portrait\)\s*\{\s*#rotate\s*\{\s*display: flex/);
   const js = read("controller.js");
-  for (const s of ["setPointerCapture", "pointercancel", "padstate", 'fetch("layout.json")']) {
+  for (const s of ["setPointerCapture", "pointercancel", "padstate", "loadLayout((path) => fetch(path))"]) {
     assert.ok(js.includes(s), s);
   }
 });

@@ -63,7 +63,7 @@ def test_serves_phone_page_and_static_files():
         r = await client.get("/")
         assert r.status == 200
         assert '<div id="pad">' in await r.text()
-        for path in ("/layout.json", "/client.js"):
+        for path in ("/layouts/index.json", "/layouts/xbox.json", "/layouts.js", "/client.js"):
             assert (await client.get(path)).status == 200
 
     run(t)

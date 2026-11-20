@@ -48,7 +48,7 @@ export function hitTest(controls, x, y, W, H) {
  * Track pointers. Each pointer is bound to the control it went down on until it lifts:
  * a stick pointer keeps steering its stick outside the circle, and a button stays held
  * while any pointer bound to it is down.
- * @param {object[]} controls layout.json `controls`
+ * @param {object[]} controls layout `controls`
  * @param {number} W screen width (px)
  * @param {number} H screen height (px)
  */

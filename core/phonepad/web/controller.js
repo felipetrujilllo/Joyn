@@ -1,10 +1,17 @@
-// DOM glue: render layout.json, feed pointer events to the tracker, draw state.
+// DOM glue: render the default layout from layouts/, feed pointer events to the tracker, draw state.
 // The current state is published as `padstate` events on `document` (detail: {b, lx, ly, rx, ry}).
 import { AXIS_MAX, box, createTracker } from "./state.js";
 import { bit } from "./buttons.js";
+import { loadLayout } from "./layouts.js";
 
 const pad = document.getElementById("pad");
-const { controls } = await (await fetch("layout.json")).json();
+const loaded = await loadLayout((path) => fetch(path));
+if (loaded.error) {
+  pad.className = "error";
+  pad.textContent = loaded.error;
+  throw new Error(loaded.error); // stop here: no controls to wire up
+}
+const { controls } = loaded;
 const tracker = createTracker(controls, innerWidth, innerHeight);
 const els = controls.map((c) => {
   const el = document.createElement("div");

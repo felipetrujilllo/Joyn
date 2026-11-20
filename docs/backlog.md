@@ -28,8 +28,10 @@ Tracked as GitHub issues. Regenerate this snapshot with `gh issue list --state a
 | #15 | Give the Xbox layout its new look (needs Felipe's description) | - | M | open |
 | #16 | Add a trackpad control that works like a stick | - | M | open |
 | #17 | Add the Steam-Controller-style layout | - | M | open |
+| #18 | Make the buttons bigger on every layout | - | S | open |
+| #19 | Let your thumb slide between D-pad directions | - | M | open |
 
-Order: #12 first. Then #13, #14 and #16 in any order. #17 after #14 and #16; #15 after #14.
+Order: #12 first. Then #13, #14, #16, #18 and #19 in any order. #17 after #14, #16 and #18; #15 after #14.
 
 ## Done: MVP slice (issues #1-#11, finished 2026-11-20)
 One phone on home Wi-Fi scans a QR code and plays Overcooked in Gaming Mode as player 2 with the full Xbox layout. Path: QR -> `GET /?k=<token>` -> phone page -> `/ws` (token check) -> `protocol.py` -> `PadManager` -> `UinputBackend` -> Steam Input -> game. Played on the real Deck ("feels very responsive"); `core/scripts/smoke_e2e.py` checks the path automatically.

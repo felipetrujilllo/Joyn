@@ -1,0 +1,6 @@
+{
+  "default": "xbox",
+  "layouts": [
+    {"id": "xbox", "name": "Xbox"}
+  ]
+}
