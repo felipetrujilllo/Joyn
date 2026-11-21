@@ -18,11 +18,13 @@ co-op: one Deck, a few friends, and the phones already in their pockets.
 
 - Scan a QR code and your phone becomes **player 2**, with the Deck's own controls as player 1
 - Full Xbox layout: two sticks, A/B/X/Y, bumpers, triggers, D-pad, Start/Back/Guide, L3/R3
+- Two looks to pick from: **Xbox** (with a round D-pad you can roll your thumb around) and **Steam**
+  (round trackpads for the D-pad and the right stick)
 - Multi-touch, so you can hold a stick and press buttons at the same time
 - Low latency over your home Wi-Fi
 - Reconnects on its own if your phone locks or the Wi-Fi blips
 - A secret code in the QR, so random people on your network can't just join
-- A layout switch button (more layouts are on the way)
+- A button to switch looks, which your phone remembers (or add `&layout=steam` to the link)
 
 ## What's coming
 
@@ -31,7 +33,7 @@ co-op: one Deck, a few friends, and the phones already in their pockets.
 - A Decky plugin, so you can do all of that from the Quick Access menu without leaving your game
 - An offline mode where the Deck makes its own Wi-Fi hotspot (for planes and road trips)
 - A one-time setup so you don't need `sudo`
-- Bigger buttons, a sliding D-pad and a Steam-Controller-style layout
+- Bigger buttons on every layout
 - **Windows support**
 
 ---

@@ -22,14 +22,14 @@ Tracked as GitHub issues. Regenerate this snapshot with `gh issue list --state a
 
 | Issue | Task | Owner | Size | Status |
 |-------|------|-------|------|--------|
-| #12 | Let the phone have more than one controller layout | - | M | open |
-| #13 | Add a button to switch layouts on the phone | - | M | open |
-| #14 | Give each layout its own colours and shapes | - | S | open |
-| #15 | Give the Xbox layout its new look (needs Felipe's description) | - | M | open |
-| #16 | Add a trackpad control that works like a stick | - | M | open |
-| #17 | Add the Steam-Controller-style layout | - | M | open |
+| #12 | Let the phone have more than one controller layout | - | M | done |
+| #13 | Add a button to switch layouts on the phone | - | M | done |
+| #14 | Give each layout its own colours and shapes | - | S | done |
+| #15 | Give the Xbox layout its new look | - | M | done |
+| #16 | Add a trackpad control that works like a stick | - | M | done |
+| #17 | Add the Steam-Controller-style layout | - | M | done |
 | #18 | Make the buttons bigger on every layout | - | S | open |
-| #19 | Let your thumb slide between D-pad directions | - | M | open |
+| #19 | Let your thumb slide between D-pad directions | - | M | mostly done (the round D-pad in #15) |
 
 Order: #12 first. Then #13, #14, #16, #18 and #19 in any order. #17 after #14, #16 and #18; #15 after #14.
 
