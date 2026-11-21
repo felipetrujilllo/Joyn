@@ -63,7 +63,7 @@ test("validator reports a duplicate button", () => {
 
 test("validator reports a third stick", () => {
   const p = layoutProblems(variant((cs) => cs.push({ type: "stick", name: "left", x: 50, y: 50, r: 2 })));
-  assert.deepEqual(p, ["sticks must be left and right, got [left,left,right]"]);
+  assert.deepEqual(p, ["left stick is driven 2 times"]);
 });
 
 test("validator reports a position outside 0..100", () => {

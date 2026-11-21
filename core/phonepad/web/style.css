@@ -24,6 +24,9 @@
   --dpad-mark: #b4b8bd;
   --dpad-glow: #ffffff66;
   --dpad-on: #4a8;
+  --trackpad: #1a1a1a;
+  --trackpad-ring: #3a3a3a;
+  --trackpad-dot: #9fc;
 }
 
 html, body {
@@ -92,6 +95,28 @@ html, body {
   border-radius: 50%;
   background: var(--knob);
 }
+
+/* Trackpad: a flat round pad; the dot shows where the finger is while touching. */
+.trackpad {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--trackpad-ring);
+  border-radius: 50%;
+  background: radial-gradient(circle closest-side, transparent 0 62%, var(--trackpad-ring) 62% 63%, transparent 63%), var(--trackpad);
+}
+
+.trackpad .dot {
+  position: absolute;
+  left: 42%;
+  top: 42%;
+  width: 16%;
+  height: 16%;
+  border-radius: 50%;
+  background: var(--trackpad-dot);
+  visibility: hidden;
+}
+
+.trackpad .dot.on { visibility: visible; }
 
 /* D-pad dish: faceted grey tiles (16 spokes x 3 rings) in a shallow bowl; no images. */
 .dpad {

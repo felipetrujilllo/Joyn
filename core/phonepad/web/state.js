@@ -1,7 +1,7 @@
 // Pure touch -> controller-state logic (no DOM), so it runs under `node --test`.
 //
 // Layout geometry: a control's x/y is its centre in percent of the screen width/height;
-// sizes (button w/h, stick and dpad r) are in percent of the screen height so controls stay round.
+// sizes (button w/h, stick/dpad/trackpad r) are in percent of the screen height so controls stay round.
 import { bit } from "./buttons.js";
 
 export const AXIS_MAX = 32767;
@@ -46,7 +46,7 @@ export function shapeStick(dx, dy, r, deadZone = DEAD_ZONE) {
 
 /**
  * Pixel geometry of a layout control on a W x H screen.
- * @returns {{cx: number, cy: number, hw: number, hh: number}} centre and half-sizes; sticks and dpads have hw = hh = radius
+ * @returns {{cx: number, cy: number, hw: number, hh: number}} centre and half-sizes; sticks, dpads and trackpads have hw = hh = radius
  */
 export function box(c, W, H) {
   const hw = ((c.type === "button" ? c.w / 2 : c.r) * H) / 100;
@@ -56,7 +56,7 @@ export function box(c, W, H) {
 
 /**
  * Return the first control containing point (x, y) in px on a W x H screen, or null.
- * Sticks and dpads are circles; buttons are rectangles unless `c.shape` is "circle" or "pill"
+ * Sticks, dpads and trackpads are circles; buttons are rectangles unless `c.shape` is "circle" or "pill"
  * (set by layouts.js shapeControls), which hit as a stadium: the drawn shape, not its box.
  */
 export function hitTest(controls, x, y, W, H) {
@@ -75,6 +75,9 @@ export function hitTest(controls, x, y, W, H) {
  * a stick pointer keeps steering its stick outside the circle, a dpad pointer presses
  * whichever direction it is on now (sliding between directions works without lifting),
  * and a button stays held while any pointer bound to it is down.
+ * A trackpad (`mode` "left"/"right") sets that stick's axes from where the finger is on it
+ * (centre neutral, rim full, same dead zone as a stick); `mode` "dpad" presses like the dpad.
+ * Two fingers on one stick-driving control: the one that went down last wins until it lifts.
  * @param {object[]} controls layout `controls`
  * @param {number} W screen width (px)
  * @param {number} H screen height (px)
@@ -102,15 +105,28 @@ export function createTracker(controls, W, H) {
     cancel: release,
     /** Release every pointer, e.g. when the page is hidden and pointerup may never arrive. */
     releaseAll() { pointers.clear(); },
+    /**
+     * Where the finger on control `c` is (the last one down if several), for drawing a trackpad's dot.
+     * @returns {{dx: number, dy: number} | null} px offset from c's centre, clamped to its radius; null when untouched
+     */
+    finger(c) {
+      let f = null;
+      for (const p of pointers.values()) if (p.c === c) f = p;
+      if (!f) return null;
+      const { cx, cy, hw } = box(c, W, H);
+      const dx = f.x - cx, dy = f.y - cy;
+      const k = Math.min(1, hw / Math.hypot(dx, dy)); // hypot 0 -> Infinity -> 1
+      return { dx: dx * k, dy: dy * k };
+    },
     /** Current state as protocol fields: {b, lx, ly, rx, ry}. */
     snapshot() {
       const s = { b: 0, lx: 0, ly: 0, rx: 0, ry: 0 };
       for (const { c, x, y } of pointers.values()) {
         if (c.type === "button") { s.b |= bit(c.name); continue; }
         const { cx, cy, hw } = box(c, W, H);
-        if (c.type === "dpad") { s.b |= dpadBits(x - cx, y - cy, hw); continue; }
+        if (c.type === "dpad" || (c.type === "trackpad" && c.mode === "dpad")) { s.b |= dpadBits(x - cx, y - cy, hw); continue; }
         const v = shapeStick(x - cx, y - cy, hw);
-        const [ax, ay] = STICK_AXES[c.name];
+        const [ax, ay] = STICK_AXES[c.type === "trackpad" ? c.mode : c.name];
         s[ax] = v.x; s[ay] = v.y;
       }
       return s;

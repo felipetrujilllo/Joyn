@@ -162,14 +162,15 @@ test("resize rescales the geometry", () => {
 
 // Layout file
 
-test("layout has every button once (as a button or from the one dpad), both sticks, valid positions", () => {
+test("layout has every button once (as a button or from the one dpad or dpad-mode trackpad), both sticks (stick or trackpad), valid positions", () => {
   for (const [id, controls] of LAYOUTS) {
     const names = controls.filter((c) => c.type === "button").map((c) => c.name);
-    const dpads = controls.filter((c) => c.type === "dpad");
+    const dpads = controls.filter((c) => c.type === "dpad" || (c.type === "trackpad" && c.mode === "dpad"));
     assert.ok(dpads.length <= 1, `${id}: at most one dpad`);
     const provided = [...names, ...dpads.flatMap(() => DPAD_BUTTONS)];
     assert.deepEqual([...provided].sort(), [...BUTTONS].sort());
-    assert.deepEqual(controls.filter((c) => c.type === "stick").map((c) => c.name).sort(), ["left", "right"]);
+    const drivers = controls.filter((c) => c.type === "stick" || (c.type === "trackpad" && c.mode !== "dpad"));
+    assert.deepEqual(drivers.map((c) => (c.type === "stick" ? c.name : c.mode)).sort(), ["left", "right"]);
     assert.equal(controls.length, names.length + dpads.length + 2);
     for (const c of controls) {
       for (const k of c.type === "button" ? ["x", "y", "w", "h"] : ["x", "y", "r"]) {

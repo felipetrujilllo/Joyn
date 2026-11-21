@@ -41,6 +41,7 @@ async function show(pick) {
     el.dataset.name = c.name;
     if (c.shape) el.dataset.shape = c.shape;
     if (c.type === "stick") el.appendChild(document.createElement("div")).className = "knob";
+    else if (c.type === "trackpad") el.appendChild(document.createElement("div")).className = "dot";
     else if (c.type === "dpad") {
       el.setAttribute("aria-label", c.label ?? "D-pad");
       for (const d of DPAD_BUTTONS) el.appendChild(document.createElement("div")).className = `dir ${d.toLowerCase()}`;
@@ -71,8 +72,19 @@ function place() {
   });
 }
 
+/** Put each trackpad's dot under its finger, hidden when untouched. */
+function drawDots() {
+  controls.forEach((c, i) => {
+    if (c.type !== "trackpad") return;
+    const f = tracker.finger(c);
+    els[i].firstChild.classList.toggle("on", f !== null);
+    if (f) els[i].firstChild.style.transform = `translate(${f.dx}px, ${f.dy}px)`;
+  });
+}
+
 /** Redraw and publish the tracker state if it changed. */
 function update() {
+  drawDots(); // before the change check: a touch in a pad's dead zone leaves the snapshot unchanged
   const s = tracker.snapshot();
   const key = JSON.stringify(s);
   if (key === last) return;
@@ -83,6 +95,7 @@ function update() {
       DPAD_BUTTONS.forEach((d, j) => els[i].children[j].classList.toggle("on", (s.b & bit(d)) !== 0));
       return;
     }
+    if (c.type === "trackpad") return; // drawn by drawDots()
     const [x, y] = c.name === "left" ? [s.lx, s.ly] : [s.rx, s.ry];
     const r = box(c, innerWidth, innerHeight).hw;
     els[i].firstChild.style.transform = `translate(${(x / AXIS_MAX) * r}px, ${(y / AXIS_MAX) * r}px)`;

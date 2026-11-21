@@ -23,8 +23,17 @@ export const DEFAULT_THEME = "xbox";
  */
 export const THEME_SHAPES = { xbox: "round" };
 
-/** The four D-pad buttons a `dpad` control provides. */
+/** The four D-pad buttons a `dpad` control (or a trackpad in "dpad" mode) provides. */
 export const DPAD_BUTTONS = ["Up", "Down", "Left", "Right"];
+
+/** The two sticks; each must be driven by exactly one control (a `stick` of that name or a trackpad in that mode). */
+export const STICKS = ["left", "right"];
+
+/**
+ * What a `{"type": "trackpad", "name", "x", "y", "r", "mode"}` control drives:
+ * "left"/"right" that stick's axes (absolute position on the pad), "dpad" Up/Down/Left/Right.
+ */
+export const TRACKPAD_MODES = [...STICKS, "dpad"];
 
 /**
  * Copy `controls`, giving each button the `shape` its theme draws it with ("circle" | "pill" | "rect").
@@ -59,24 +68,29 @@ export function layoutProblems(layout) {
   const t = layout.theme;
   if (t !== undefined && !(typeof t === "string" && ID_RE.test(t) && THEMES.includes(t))) problems.push(`unknown theme ${t}`);
   for (const c of controls) {
-    const keys = { stick: ["x", "y", "r"], dpad: ["x", "y", "r"], button: ["x", "y", "w", "h"] }[c?.type];
+    const keys = { stick: ["x", "y", "r"], dpad: ["x", "y", "r"], trackpad: ["x", "y", "r"], button: ["x", "y", "w", "h"] }[c?.type];
     if (!keys) { problems.push(`${c?.name}: unknown type ${c?.type}`); continue; }
     const bad = keys.filter((k) => !(typeof c[k] === "number" && c[k] >= 0 && c[k] <= 100));
     if (bad.length) problems.push(`${c.name}: ${bad.join(", ")} must be a number 0..100`);
     else sized.push(c);
     if (c.type === "button" && !c.label) problems.push(`${c.name}: no label`);
+    if (c.type === "stick" && !STICKS.includes(c.name)) problems.push(`${c.name}: a stick must be named left or right`);
+    if (c.type === "trackpad" && !TRACKPAD_MODES.includes(c.mode)) problems.push(`${c.name}: unknown mode ${c.mode}`);
     if (c.icon !== undefined && !Object.hasOwn(ICONS, c.icon)) problems.push(`${c.name}: unknown icon ${c.icon}`);
   }
   const names = controls.filter((c) => c?.type === "button").map((c) => c.name);
-  // each dpad provides Up/Down/Left/Right, so a dpad plus a D-pad button (or two dpads) counts twice
-  const provided = [...names, ...controls.filter((c) => c?.type === "dpad").flatMap(() => DPAD_BUTTONS)];
+  // each dpad (or dpad-mode trackpad) provides Up/Down/Left/Right, so one plus a D-pad button (or two) counts twice
+  const dpads = controls.filter((c) => c?.type === "dpad" || (c?.type === "trackpad" && c.mode === "dpad"));
+  const provided = [...names, ...dpads.flatMap(() => DPAD_BUTTONS)];
   for (const b of BUTTONS) {
     const n = provided.filter((x) => x === b).length;
     if (n !== 1) problems.push(n ? `${b} appears ${n} times` : `${b} is missing`);
   }
   for (const x of names) if (!BUTTONS.includes(x)) problems.push(`unknown button ${x}`);
-  const sticks = controls.filter((c) => c?.type === "stick").map((c) => c.name).sort();
-  if (sticks.join() !== "left,right") problems.push(`sticks must be left and right, got [${sticks}]`);
+  for (const s of STICKS) {
+    const n = controls.filter((c) => (c?.type === "stick" && c.name === s) || (c?.type === "trackpad" && c.mode === s)).length;
+    if (n !== 1) problems.push(n ? `${s} stick is driven ${n} times` : `${s} stick is missing`);
+  }
   for (const [W, H] of SCREENS) {
     const bs = sized.map((c) => box(c, W, H));
     const z = box(SWITCH_ZONE, W, H);
