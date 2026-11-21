@@ -16,12 +16,12 @@
   --x: #3b8bff;
   --y: #f2c200;
   --on-face: #111;
-  --dpad-tile: #c8cbcf;
-  --dpad-tile-alt: #b2b6bb;
-  --dpad-line: #8a8e94;
-  --dpad-band: #ffffff24;
-  --dpad-shade: #00000070;
-  --dpad-mark: #6a6f75;
+  --dpad-tile: #5c6066;
+  --dpad-tile-alt: #4c5056;
+  --dpad-line: #33363a;
+  --dpad-band: #ffffff14;
+  --dpad-shade: #00000080;
+  --dpad-mark: #b4b8bd;
   --dpad-glow: #ffffff66;
   --dpad-on: #4a8;
 }
