@@ -14,14 +14,14 @@ const ID_RE = /^[\w-]+$/;
 export const SWITCH_ZONE = { type: "button", name: "switch", x: 36, y: 7, w: 14, h: 10 };
 
 /** Themes a layout may name in `"theme"`; each needs a `[data-theme="<id>"]` block in style.css. */
-export const THEMES = ["xbox"];
+export const THEMES = ["xbox", "steam"];
 export const DEFAULT_THEME = "xbox";
 
 /**
  * How each theme draws (and hit-tests) its buttons; the one place shapes are set.
  * "round": a square button (w = h) is a circle, a wide or tall one a pill. "rect": rectangles.
  */
-export const THEME_SHAPES = { xbox: "round" };
+export const THEME_SHAPES = { xbox: "round", steam: "round" };
 
 /** The four D-pad buttons a `dpad` control (or a trackpad in "dpad" mode) provides. */
 export const DPAD_BUTTONS = ["Up", "Down", "Left", "Right"];

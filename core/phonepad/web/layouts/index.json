@@ -1,6 +1,7 @@
 {
   "default": "xbox",
   "layouts": [
-    {"id": "xbox", "name": "Xbox"}
+    {"id": "xbox", "name": "Xbox"},
+    {"id": "steam", "name": "Steam"}
   ]
 }

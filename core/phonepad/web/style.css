@@ -29,6 +29,37 @@
   --trackpad-dot: #9fc;
 }
 
+/* Steam-style: cool charcoal/slate, neutral face letters (no per-button colours), soft blue accent. */
+[data-theme="steam"] {
+  --bg: #171a21;
+  --fg: #dfe3ea;
+  --muted: #8a93a3;
+  --button: #262b35;
+  --border: #4a5263;
+  --pressed: #3d6fa8;
+  --pressed-border: #8cc2f5;
+  --stick: #1e222b;
+  --knob: #4e5666;
+  --switch-border: #3a4150;
+  --switch-fg: #8a93a3;
+  --a: #c7ccd6;
+  --b: #c7ccd6;
+  --x: #c7ccd6;
+  --y: #c7ccd6;
+  --on-face: #171a21;
+  --dpad-tile: #4e5666;
+  --dpad-tile-alt: #434a58;
+  --dpad-line: #2b303a;
+  --dpad-band: #ffffff12;
+  --dpad-shade: #00000080;
+  --dpad-mark: #aab2c0;
+  --dpad-glow: #8cc2f566;
+  --dpad-on: #8cc2f5;
+  --trackpad: #1f232c;
+  --trackpad-ring: #343b48;
+  --trackpad-dot: #8cc2f5;
+}
+
 html, body {
   margin: 0;
   position: fixed;

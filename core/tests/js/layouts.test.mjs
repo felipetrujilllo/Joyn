@@ -163,14 +163,14 @@ test("chooseLayout: unknown or unsafe ids fall back", () => {
   assert.equal(chooseLayout(three, { search: "?layout=steam", saved: "a" }), "a");
   assert.equal(chooseLayout(three, { search: "?layout=../x", saved: "../x" }), "b");
   assert.equal(chooseLayout(three, { search: "?layout=", saved: "" }), "b");
-  assert.equal(chooseLayout(index, { search: "?layout=steam" }), "xbox"); // real index: unknown -> Xbox
+  assert.equal(chooseLayout(index, { search: "?layout=nope" }), "xbox"); // real index: unknown -> Xbox
 });
 
 test("nextLayout cycles and wraps; one layout returns itself", () => {
   assert.equal(nextLayout(three, "a"), "b");
   assert.equal(nextLayout(three, "b"), "c");
   assert.equal(nextLayout(three, "c"), "a");
-  assert.equal(nextLayout(index, "xbox"), "xbox");
+  assert.equal(nextLayout({ default: "xbox", layouts: [{ id: "xbox", name: "Xbox" }] }, "xbox"), "xbox");
 });
 
 test("saved layout choice round-trips and survives broken storage", () => {
@@ -269,7 +269,7 @@ test("real xbox layout names the xbox theme; a missing theme loads as the defaul
 
 test("validator accepts a known theme and rejects an unknown or unsafe one", () => {
   assert.deepEqual(layoutProblems({ ...xbox, theme: "xbox" }), []);
-  for (const bad of ["steam", "../xbox", "xbox;}", 7, null, ""]) {
+  for (const bad of ["nope", "../xbox", "xbox;}", 7, null, ""]) {
     assert.deepEqual(layoutProblems({ ...xbox, theme: bad }), [`unknown theme ${bad}`], String(bad));
   }
 });
